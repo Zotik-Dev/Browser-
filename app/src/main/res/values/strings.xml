@@ -25,8 +25,8 @@
     <string name="link_copied">Link copied to clipboard</string>
     <string name="incognito_mode">Incognito Mode</string>
     <string name="incognito_description">Browsing history, cookies, and site data won\'t be saved on this device.</string>
-    <string name="vpn_title">Apex VPN &amp; Unblocker</string>
-    <string name="vpn_connected">Protected</string>
-    <string name="vpn_disconnected">Disconnected</string>
-    <string name="unblock_all_sites">Unblock All Sites</string>
+    <string name="speed_booster_title">Speed Booster &amp; Turbo</string>
+    <string name="speed_booster_active">Turbo Active</string>
+    <string name="speed_booster_standard">Standard Speed</string>
+    <string name="hardware_acceleration">Hardware Acceleration</string>
 </resources>

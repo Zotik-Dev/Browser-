@@ -24,12 +24,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -59,8 +60,9 @@ import androidx.compose.ui.unit.sp
 import com.example.data.BookmarkEntity
 import com.example.data.HistoryEntity
 import com.example.model.SearchEngine
+import com.example.model.SpeedBoostState
 import com.example.model.SpeedDialItem
-import com.example.model.VpnState
+import com.example.util.SpeedBooster
 import java.util.Calendar
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -70,14 +72,14 @@ fun NewTabPage(
     searchEngine: SearchEngine,
     trackersBlocked: Int,
     adBlockerEnabled: Boolean,
-    vpnState: VpnState = VpnState(),
+    speedState: SpeedBoostState = SpeedBoostState(),
     speedDialItems: List<SpeedDialItem>,
     bookmarks: List<BookmarkEntity>,
     recentHistory: List<HistoryEntity>,
     onOpenUrl: (String) -> Unit,
     onAddSpeedDial: () -> Unit,
-    onToggleVpn: () -> Unit = {},
-    onOpenVpnSheet: () -> Unit = {},
+    onToggleSpeedBoost: () -> Unit = {},
+    onOpenSpeedSheet: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     var searchInput by remember { mutableStateOf("") }
@@ -289,24 +291,24 @@ fun NewTabPage(
             }
         }
 
-        // Apex VPN & Site Unblocker Card
+        // Enhanced Speed & Turbo Acceleration Card
         item {
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 20.dp)
-                    .clickable(onClick = onOpenVpnSheet)
-                    .testTag("new_tab_vpn_card"),
+                    .clickable(onClick = onOpenSpeedSheet)
+                    .testTag("new_tab_speed_card"),
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (vpnState.isConnected)
-                        Color(0xFF10B981).copy(alpha = 0.12f)
+                    containerColor = if (speedState.isEnhancedSpeedEnabled)
+                        Color(0xFFF59E0B).copy(alpha = 0.12f)
                     else
                         MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                 ),
                 border = androidx.compose.foundation.BorderStroke(
                     1.dp,
-                    if (vpnState.isConnected) Color(0xFF10B981).copy(alpha = 0.4f)
+                    if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.4f)
                     else MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
             ) {
@@ -321,23 +323,23 @@ fun NewTabPage(
                             .size(40.dp)
                             .clip(CircleShape)
                             .background(
-                                if (vpnState.isConnected) Color(0xFF10B981).copy(alpha = 0.2f)
+                                if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.2f)
                                 else MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
                             ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.VpnKey,
+                            imageVector = Icons.Default.Bolt,
                             contentDescription = null,
-                            tint = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(20.dp)
+                            tint = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                     Spacer(modifier = Modifier.width(14.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "VPN & Site Unblocker",
+                                text = "Speed Booster & Turbo",
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onSurface
@@ -345,31 +347,31 @@ fun NewTabPage(
                             Spacer(modifier = Modifier.width(6.dp))
                             Surface(
                                 shape = RoundedCornerShape(6.dp),
-                                color = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.surfaceVariant
+                                color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.surfaceVariant
                             ) {
                                 Text(
-                                    text = if (vpnState.isConnected) "PROTECTED" else "OFF",
+                                    text = if (speedState.isEnhancedSpeedEnabled) "TURBO" else "OFF",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (vpnState.isConnected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    color = if (speedState.isEnhancedSpeedEnabled) Color.White else MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp)
                                 )
                             }
                         }
                         Text(
-                            text = if (vpnState.isConnected)
-                                "${vpnState.selectedServer.flagEmoji} ${vpnState.selectedServer.name} • Unblocking active"
+                            text = if (speedState.isEnhancedSpeedEnabled)
+                                "${SpeedBooster.formatLoadTime(speedState.averageLoadTimeMs)} avg load • ${SpeedBooster.formatDataSaved(speedState.estimatedDataSavedKb)} saved"
                             else
-                                "Tap to enable VPN tunnel & unblock restricted websites",
+                                "Tap to turn on GPU render acceleration and smart pre-fetching",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Switch(
-                        checked = vpnState.isConnected,
-                        onCheckedChange = { onToggleVpn() },
-                        modifier = Modifier.testTag("new_tab_vpn_switch")
+                        checked = speedState.isEnhancedSpeedEnabled,
+                        onCheckedChange = { onToggleSpeedBoost() },
+                        modifier = Modifier.testTag("new_tab_speed_switch")
                     )
                 }
             }

@@ -1,6 +1,6 @@
 {
   "name": "Apex Browser",
-  "description": "Fast, private Android web browser with multi-tab management, built-in VPN, site unblocker, bookmarks, history, reader mode, and ad protection.",
+  "description": "Fast, private Android web browser with multi-tab management, Turbo speed booster, GPU acceleration, aggressive caching, data saver, bookmarks, history, reader mode, and ad protection.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

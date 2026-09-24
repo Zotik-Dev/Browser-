@@ -27,9 +27,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.viewinterop.AndroidView
 import com.example.model.BrowserTab
 import com.example.model.ReaderContent
+import com.example.model.SpeedBoostState
 import com.example.util.AdBlocker
+import com.example.util.SpeedBooster
 import com.example.util.UrlUtils
-import com.example.util.VpnManager
 import org.json.JSONObject
 
 private const val DESKTOP_USER_AGENT =
@@ -41,6 +42,7 @@ fun WebContainer(
     tab: BrowserTab,
     adBlockerEnabled: Boolean,
     javascriptEnabled: Boolean,
+    speedBoostState: SpeedBoostState = SpeedBoostState(),
     findInPageQuery: String,
     isFindInPageActive: Boolean,
     onNavigationStateChanged: (title: String?, url: String?, progress: Int?, isLoading: Boolean?, canGoBack: Boolean?, canGoForward: Boolean?) -> Unit,
@@ -49,10 +51,11 @@ fun WebContainer(
     onReaderContentExtracted: (ReaderContent) -> Unit,
     onFindMatchCountUpdated: (activeMatchOrdinal: Int, numberOfMatches: Int) -> Unit,
     onWebViewCreated: (WebView) -> Unit,
-    onPageBlocked: (String) -> Unit = {},
+    onPageLoadMetrics: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val pageStartTime = remember(tab.id) { longArrayOf(0L) }
 
     val webView = remember(tab.id) {
         WebView(context).apply {
@@ -108,6 +111,11 @@ fun WebContainer(
         }
     }
 
+    // Apply Speed optimizations dynamically
+    LaunchedEffect(speedBoostState) {
+        SpeedBooster.applySpeedOptimizations(webView, speedBoostState)
+    }
+
     // Apply Desktop User Agent toggle
     LaunchedEffect(tab.isDesktopSite) {
         if (tab.isDesktopSite) {
@@ -158,6 +166,7 @@ fun WebContainer(
 
             override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
                 super.onPageStarted(view, url, favicon)
+                pageStartTime[0] = System.currentTimeMillis()
                 onNavigationStateChanged(
                     view?.title,
                     url,
@@ -170,6 +179,10 @@ fun WebContainer(
 
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
+                if (pageStartTime[0] > 0) {
+                    val duration = (System.currentTimeMillis() - pageStartTime[0]).coerceAtLeast(35)
+                    onPageLoadMetrics(duration)
+                }
                 onNavigationStateChanged(
                     view?.title,
                     url,
@@ -180,32 +193,18 @@ fun WebContainer(
                 )
             }
 
-            override fun onReceivedError(
-                view: WebView?,
-                request: android.webkit.WebResourceRequest?,
-                error: android.webkit.WebResourceError?
-            ) {
-                super.onReceivedError(view, request, error)
-                if (request?.isForMainFrame == true) {
-                    val failingUrl = request.url?.toString() ?: ""
-                    val errorCode = error?.errorCode ?: 0
-                    val description = error?.description?.toString()
-                    if (VpnManager.isNetworkBlockedError(errorCode, description)) {
-                        onPageBlocked(failingUrl)
-                    }
-                }
-            }
-
             override fun shouldInterceptRequest(
                 view: WebView?,
                 request: WebResourceRequest?
             ): WebResourceResponse? {
-                if (adBlockerEnabled) {
-                    val reqUrl = request?.url?.toString()
-                    if (AdBlocker.isAdOrTracker(reqUrl)) {
-                        onTrackerBlocked()
-                        return AdBlocker.createEmptyResponse()
-                    }
+                val reqUrl = request?.url?.toString()
+                if (adBlockerEnabled && AdBlocker.isAdOrTracker(reqUrl)) {
+                    onTrackerBlocked()
+                    return AdBlocker.createEmptyResponse()
+                }
+                if (speedBoostState.isEnhancedSpeedEnabled && SpeedBooster.isBloatOrTelemetry(reqUrl)) {
+                    onTrackerBlocked()
+                    return AdBlocker.createEmptyResponse()
                 }
                 return super.shouldInterceptRequest(view, request)
             }

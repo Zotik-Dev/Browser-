@@ -18,15 +18,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Code
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FlashOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Shield
-import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -50,20 +52,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.SearchEngine
-import com.example.model.VpnState
+import com.example.model.SpeedBoostState
 
 @Composable
 fun SettingsDialog(
     searchEngine: SearchEngine,
     adBlockerEnabled: Boolean,
     javascriptEnabled: Boolean,
-    vpnState: VpnState = VpnState(),
+    speedState: SpeedBoostState = SpeedBoostState(),
     onSearchEngineChange: (SearchEngine) -> Unit,
     onToggleAdBlocker: () -> Unit,
     onToggleJavascript: () -> Unit,
-    onToggleVpn: () -> Unit = {},
-    onSetUnblockAllSites: (Boolean) -> Unit = {},
-    onOpenVpnSheet: () -> Unit = {},
+    onToggleSpeedBoost: () -> Unit = {},
+    onToggleAggressiveCache: (Boolean) -> Unit = {},
+    onOpenSpeedSheet: () -> Unit = {},
     onOpenClearData: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier
@@ -157,9 +159,9 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // VPN & Anti-Censorship Section
+                // Enhanced Speed & Acceleration Section
                 Text(
-                    text = "VPN & Anti-Censorship",
+                    text = "Speed Booster & Turbo Acceleration",
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
@@ -172,7 +174,7 @@ fun SettingsDialog(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
                 ) {
                     Column {
-                        // Apex VPN Tunnel Toggle
+                        // Turbo Mode Toggle
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -185,48 +187,48 @@ fun SettingsDialog(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.VpnKey,
+                                    imageVector = Icons.Default.Bolt,
                                     contentDescription = null,
-                                    tint = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.primary,
+                                    tint = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(
-                                            text = "Apex VPN Tunnel",
+                                            text = "Enhanced Speed Booster",
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 14.sp
                                         )
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Surface(
                                             shape = RoundedCornerShape(4.dp),
-                                            color = if (vpnState.isConnected) Color(0xFF10B981).copy(alpha = 0.2f)
+                                            color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.2f)
                                             else MaterialTheme.colorScheme.surfaceVariant
                                         ) {
                                             Text(
-                                                text = if (vpnState.isConnected) "ACTIVE" else "OFF",
+                                                text = if (speedState.isEnhancedSpeedEnabled) "TURBO" else "OFF",
                                                 fontSize = 9.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
                                                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 1.dp)
                                             )
                                         }
                                     }
                                     Text(
-                                        text = if (vpnState.isConnected)
-                                            "${vpnState.selectedServer.name} • Virtual IP: ${vpnState.currentVirtualIp}"
+                                        text = if (speedState.isEnhancedSpeedEnabled)
+                                            "GPU rendering, cache acceleration & resource pre-fetch active"
                                         else
-                                            "Route traffic through encrypted proxy servers",
+                                            "Enable for 2x faster page loads and smooth scrolling",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                             Switch(
-                                checked = vpnState.isConnected,
-                                onCheckedChange = { onToggleVpn() },
-                                modifier = Modifier.testTag("settings_vpn_switch")
+                                checked = speedState.isEnhancedSpeedEnabled,
+                                onCheckedChange = { onToggleSpeedBoost() },
+                                modifier = Modifier.testTag("settings_speed_switch")
                             )
                         }
 
@@ -235,7 +237,7 @@ fun SettingsDialog(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
 
-                        // Unblock All Sites (Proxy Bypass)
+                        // Aggressive Cache Toggle
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -248,7 +250,7 @@ fun SettingsDialog(
                                 modifier = Modifier.weight(1f)
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.Public,
+                                    imageVector = Icons.Default.Speed,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(22.dp)
@@ -256,21 +258,21 @@ fun SettingsDialog(
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column {
                                     Text(
-                                        text = "Unblock All Sites",
+                                        text = "Aggressive Smart Caching",
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 14.sp
                                     )
                                     Text(
-                                        text = "Auto-route blocked pages via gateway reader",
+                                        text = "Instant re-loads from high-speed local memory",
                                         fontSize = 12.sp,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
                             }
                             Switch(
-                                checked = vpnState.unblockAllSites,
-                                onCheckedChange = { onSetUnblockAllSites(it) },
-                                modifier = Modifier.testTag("settings_unblock_all_switch")
+                                checked = speedState.isAggressiveCacheEnabled,
+                                onCheckedChange = { onToggleAggressiveCache(it) },
+                                modifier = Modifier.testTag("settings_cache_switch")
                             )
                         }
 
@@ -279,30 +281,30 @@ fun SettingsDialog(
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f)
                         )
 
-                        // Server Locations & DNS
+                        // Advanced Speed & Performance Dashboard
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onOpenVpnSheet() }
+                                .clickable { onOpenSpeedSheet() }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Column {
                                 Text(
-                                    text = "Locations & Custom Proxy",
+                                    text = "Speed & Performance Dashboard",
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp
                                 )
                                 Text(
-                                    text = "${vpnState.selectedServer.flagEmoji} ${vpnState.selectedServer.name} • ${vpnState.selectedDns.name}",
+                                    text = "Hardware acceleration, DNS pre-fetching & metrics",
                                     fontSize = 12.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
-                                contentDescription = "Configure",
+                                contentDescription = "Open Dashboard",
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }

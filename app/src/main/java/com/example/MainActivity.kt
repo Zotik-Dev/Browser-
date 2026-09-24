@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Public
-import androidx.compose.material.icons.filled.VpnKey
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,8 +54,8 @@ import com.example.ui.components.NewTabPage
 import com.example.ui.components.Omnibar
 import com.example.ui.components.ReaderModeView
 import com.example.ui.components.SettingsDialog
+import com.example.ui.components.SpeedBoostSheet
 import com.example.ui.components.TabOverviewSheet
-import com.example.ui.components.VpnSheet
 import com.example.ui.components.WebContainer
 import com.example.ui.components.extractReaderModeContent
 import com.example.ui.theme.MyApplicationTheme
@@ -108,7 +107,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
     val history by viewModel.history.collectAsStateWithLifecycle()
     val downloads by viewModel.downloads.collectAsStateWithLifecycle()
-    val vpnState by viewModel.vpnState.collectAsStateWithLifecycle()
+    val speedState by viewModel.speedBoostState.collectAsStateWithLifecycle()
 
     // Dialog & overlay states
     val showTabOverview by viewModel.showTabOverview.collectAsStateWithLifecycle()
@@ -118,8 +117,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     val showSettingsDialog by viewModel.showSettingsDialog.collectAsStateWithLifecycle()
     val showClearDataDialog by viewModel.showClearDataDialog.collectAsStateWithLifecycle()
     val showAddSpeedDialDialog by viewModel.showAddSpeedDialDialog.collectAsStateWithLifecycle()
-    val showVpnSheet by viewModel.showVpnSheet.collectAsStateWithLifecycle()
-    val showUnblockPrompt by viewModel.showUnblockPrompt.collectAsStateWithLifecycle()
+    val showSpeedSheet by viewModel.showSpeedSheet.collectAsStateWithLifecycle()
 
     // Reader Mode & Find in page
     val readerContent by viewModel.readerContent.collectAsStateWithLifecycle()
@@ -137,8 +135,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     // System Back Press Handling
     BackHandler(enabled = true) {
         when {
-            showUnblockPrompt != null -> viewModel.dismissUnblockPrompt()
-            showVpnSheet -> viewModel.setShowVpnSheet(false)
+            showSpeedSheet -> viewModel.setShowSpeedSheet(false)
             isFindInPageActive -> viewModel.closeFindInPage()
             readerContent != null -> viewModel.closeReaderMode()
             showTabOverview -> viewModel.setShowTabOverview(false)
@@ -169,7 +166,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     isBookmarked = isBookmarked,
                     adBlockerEnabled = adBlockerEnabled,
                     trackersBlocked = trackersBlocked,
-                    vpnState = vpnState,
+                    speedState = speedState,
                     onNavigate = { input -> viewModel.loadUrlInActiveTab(input) },
                     onReload = { activeWebView?.reload() },
                     onStopLoading = { activeWebView?.stopLoading() },
@@ -204,8 +201,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     onOpenDownloads = { viewModel.setShowDownloadsDialog(true) },
                     onOpenSettings = { viewModel.setShowSettingsDialog(true) },
                     onOpenClearData = { viewModel.setShowClearDataDialog(true) },
-                    onOpenVpnSheet = { viewModel.setShowVpnSheet(true) },
-                    onUnblockCurrentPage = { viewModel.unblockCurrentPage() }
+                    onOpenSpeedSheet = { viewModel.setShowSpeedSheet(true) }
                 )
             }
         },
@@ -257,20 +253,21 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     searchEngine = searchEngine,
                     trackersBlocked = trackersBlocked,
                     adBlockerEnabled = adBlockerEnabled,
-                    vpnState = vpnState,
+                    speedState = speedState,
                     speedDialItems = speedDialItems,
                     bookmarks = bookmarks,
                     recentHistory = history,
                     onOpenUrl = { url -> viewModel.loadUrlInActiveTab(url) },
                     onAddSpeedDial = { viewModel.setShowAddSpeedDialDialog(true) },
-                    onToggleVpn = { viewModel.toggleVpn() },
-                    onOpenVpnSheet = { viewModel.setShowVpnSheet(true) }
+                    onToggleSpeedBoost = { viewModel.toggleEnhancedSpeed() },
+                    onOpenSpeedSheet = { viewModel.setShowSpeedSheet(true) }
                 )
             } else {
                 WebContainer(
                     tab = activeTab,
                     adBlockerEnabled = adBlockerEnabled,
                     javascriptEnabled = javascriptEnabled,
+                    speedBoostState = speedState,
                     findInPageQuery = findInPageQuery,
                     isFindInPageActive = isFindInPageActive,
                     onNavigationStateChanged = { title, url, progress, isLoading, canGoBack, canGoForward ->
@@ -296,8 +293,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     onWebViewCreated = { webView ->
                         activeWebView = webView
                     },
-                    onPageBlocked = { failingUrl ->
-                        viewModel.handlePageBlockedError(failingUrl)
+                    onPageLoadMetrics = { durationMs ->
+                        viewModel.recordPageLoadTime(durationMs)
                     }
                 )
             }
@@ -373,13 +370,13 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             searchEngine = searchEngine,
             adBlockerEnabled = adBlockerEnabled,
             javascriptEnabled = javascriptEnabled,
-            vpnState = vpnState,
+            speedState = speedState,
             onSearchEngineChange = { engine -> viewModel.setSearchEngine(engine) },
             onToggleAdBlocker = { viewModel.toggleAdBlocker() },
             onToggleJavascript = { viewModel.toggleJavascript() },
-            onToggleVpn = { viewModel.toggleVpn() },
-            onSetUnblockAllSites = { viewModel.setUnblockAllSites(it) },
-            onOpenVpnSheet = { viewModel.setShowVpnSheet(true) },
+            onToggleSpeedBoost = { viewModel.toggleEnhancedSpeed() },
+            onToggleAggressiveCache = { viewModel.setAggressiveCache(it) },
+            onOpenSpeedSheet = { viewModel.setShowSpeedSheet(true) },
             onOpenClearData = {
                 viewModel.setShowSettingsDialog(false)
                 viewModel.setShowClearDataDialog(true)
@@ -408,64 +405,17 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         )
     }
 
-    // Apex VPN & Anti-Censorship Configuration Sheet
-    if (showVpnSheet) {
-        VpnSheet(
-            vpnState = vpnState,
-            onToggleVpn = { viewModel.toggleVpn() },
-            onSelectServer = { server -> viewModel.selectVpnServer(server) },
-            onSetUnblockAllSites = { viewModel.setUnblockAllSites(it) },
-            onSelectDns = { dns -> viewModel.selectSecureDns(dns) },
-            onUpdateCustomProxy = { enabled, host, port, type ->
-                viewModel.updateCustomProxy(enabled, host, port, type)
-            },
-            onDismiss = { viewModel.setShowVpnSheet(false) }
-        )
-    }
-
-    // Blocked / Inaccessible Site Prompt
-    showUnblockPrompt?.let { failingUrl ->
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissUnblockPrompt() },
-            icon = {
-                Icon(
-                    imageVector = Icons.Default.Public,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-            },
-            title = { Text("Site Blocked or Unreachable") },
-            text = {
-                Text(
-                    "The webpage at \"$failingUrl\" could not be reached. It may be geo-restricted or blocked by your network provider.\n\nWould you like Apex to unblock it through our secure gateway reader or turn on Apex VPN?"
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        viewModel.unblockCurrentPage(failingUrl)
-                    }
-                ) {
-                    Text("Unblock Now")
-                }
-            },
-            dismissButton = {
-                Row {
-                    if (!vpnState.isConnected) {
-                        TextButton(
-                            onClick = {
-                                viewModel.dismissUnblockPrompt()
-                                viewModel.toggleVpn()
-                            }
-                        ) {
-                            Text("Turn on VPN")
-                        }
-                    }
-                    TextButton(onClick = { viewModel.dismissUnblockPrompt() }) {
-                        Text("Dismiss")
-                    }
-                }
-            }
+    // Apex Speed & Performance Booster Sheet
+    if (showSpeedSheet) {
+        SpeedBoostSheet(
+            speedState = speedState,
+            onToggleEnhancedSpeed = { viewModel.toggleEnhancedSpeed() },
+            onToggleAggressiveCache = { viewModel.setAggressiveCache(it) },
+            onToggleHardwareAcceleration = { viewModel.setHardwareAcceleration(it) },
+            onTogglePrefetch = { viewModel.setPrefetchEnabled(it) },
+            onToggleDataSaver = { viewModel.setDataSaver(it) },
+            onClearSpeedMetrics = { viewModel.clearSpeedMetrics() },
+            onDismiss = { viewModel.setShowSpeedSheet(false) }
         )
     }
 }

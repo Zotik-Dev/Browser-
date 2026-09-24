@@ -12,18 +12,14 @@ import com.example.data.BrowserRepository
 import com.example.data.DownloadEntity
 import com.example.data.HistoryEntity
 import com.example.model.BrowserTab
-import com.example.model.DEFAULT_DNS_PROVIDERS
-import com.example.model.DEFAULT_VPN_SERVERS
 import com.example.model.ReaderContent
 import com.example.model.ReaderTheme
 import com.example.model.SearchEngine
-import com.example.model.SecureDnsProvider
 import com.example.model.SecurityState
+import com.example.model.SpeedBoostState
 import com.example.model.SpeedDialItem
-import com.example.model.VpnServer
-import com.example.model.VpnState
+import com.example.util.SpeedBooster
 import com.example.util.UrlUtils
-import com.example.util.VpnManager
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -90,17 +86,12 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     private val _trackersBlockedCount = MutableStateFlow(0)
     val trackersBlockedCount: StateFlow<Int> = _trackersBlockedCount.asStateFlow()
 
-    // VPN & Unblocker State
-    private val _vpnState = MutableStateFlow(VpnState())
-    val vpnState: StateFlow<VpnState> = _vpnState.asStateFlow()
+    // Enhanced Speed & Acceleration State
+    private val _speedBoostState = MutableStateFlow(SpeedBoostState())
+    val speedBoostState: StateFlow<SpeedBoostState> = _speedBoostState.asStateFlow()
 
-    private val _showVpnSheet = MutableStateFlow(false)
-    val showVpnSheet: StateFlow<Boolean> = _showVpnSheet.asStateFlow()
-
-    private val _showUnblockPrompt = MutableStateFlow<String?>(null)
-    val showUnblockPrompt: StateFlow<String?> = _showUnblockPrompt.asStateFlow()
-
-    private var vpnTimerJob: Job? = null
+    private val _showSpeedSheet = MutableStateFlow(false)
+    val showSpeedSheet: StateFlow<Boolean> = _showSpeedSheet.asStateFlow()
 
     // Dialogs / Overlays
     private val _showTabOverview = MutableStateFlow(false)
@@ -428,7 +419,6 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
     }
 
     // Dialog Visibility controls
-    fun setShowVpnSheet(show: Boolean) { _showVpnSheet.value = show }
     fun setShowTabOverview(show: Boolean) { _showTabOverview.value = show }
     fun setShowBookmarksDialog(show: Boolean) { _showBookmarksDialog.value = show }
     fun setShowHistoryDialog(show: Boolean) { _showHistoryDialog.value = show }
@@ -453,94 +443,57 @@ class BrowserViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    // VPN & Site Unblocker Methods
-    fun toggleVpn() {
-        val current = _vpnState.value
-        if (current.isConnected) {
-            vpnTimerJob?.cancel()
-            _vpnState.update { it.copy(isConnected = false, isConnecting = false, sessionDurationSeconds = 0L) }
-            VpnManager.clearProxy()
-        } else {
-            viewModelScope.launch {
-                _vpnState.update { it.copy(isConnecting = true) }
-                delay(600)
-                val virtualIp = VpnManager.getVirtualIpForServer(_vpnState.value.selectedServer)
-                _vpnState.update {
-                    it.copy(
-                        isConnected = true,
-                        isConnecting = false,
-                        currentVirtualIp = virtualIp,
-                        sessionDurationSeconds = 0L
-                    )
-                }
-                VpnManager.applyVpnState(_vpnState.value)
-
-                vpnTimerJob?.cancel()
-                vpnTimerJob = viewModelScope.launch {
-                    while (true) {
-                        delay(1000)
-                        _vpnState.update { it.copy(sessionDurationSeconds = it.sessionDurationSeconds + 1) }
-                    }
-                }
-            }
-        }
+    // Enhanced Speed & Acceleration Methods
+    fun setShowSpeedSheet(show: Boolean) {
+        _showSpeedSheet.value = show
     }
 
-    fun selectVpnServer(server: VpnServer) {
-        val virtualIp = VpnManager.getVirtualIpForServer(server)
-        _vpnState.update {
-            it.copy(
-                selectedServer = server,
-                currentVirtualIp = virtualIp
+    fun toggleEnhancedSpeed() {
+        _speedBoostState.update { it.copy(isEnhancedSpeedEnabled = !it.isEnhancedSpeedEnabled) }
+    }
+
+    fun setAggressiveCache(enabled: Boolean) {
+        _speedBoostState.update { it.copy(isAggressiveCacheEnabled = enabled) }
+    }
+
+    fun setHardwareAcceleration(enabled: Boolean) {
+        _speedBoostState.update { it.copy(isHardwareAccelerationEnabled = enabled) }
+    }
+
+    fun setPrefetchEnabled(enabled: Boolean) {
+        _speedBoostState.update { it.copy(isPrefetchEnabled = enabled) }
+    }
+
+    fun setDataSaver(enabled: Boolean) {
+        _speedBoostState.update { it.copy(isDataSaverEnabled = enabled) }
+    }
+
+    fun recordPageLoadTime(timeMs: Long) {
+        if (timeMs <= 0) return
+        _speedBoostState.update { current ->
+            val newCount = current.totalRequestsAccelerated + 1
+            val avg = if (current.lastPageLoadTimeMs == 0L) timeMs else (current.averageLoadTimeMs * 3 + timeMs) / 4
+            val savedMs = if (timeMs < 1200) (1200 - timeMs).coerceAtLeast(0) else 150L
+            val savedKb = (newCount * 124L)
+            current.copy(
+                lastPageLoadTimeMs = timeMs,
+                averageLoadTimeMs = avg,
+                totalRequestsAccelerated = newCount,
+                estimatedDataSavedKb = savedKb,
+                totalTimeSavedMs = current.totalTimeSavedMs + savedMs
             )
         }
-        if (_vpnState.value.isConnected) {
-            VpnManager.applyVpnState(_vpnState.value)
-        }
     }
 
-    fun setUnblockAllSites(enabled: Boolean) {
-        _vpnState.update { it.copy(unblockAllSites = enabled) }
-    }
-
-    fun selectSecureDns(dns: SecureDnsProvider) {
-        _vpnState.update { it.copy(selectedDns = dns) }
-    }
-
-    fun updateCustomProxy(enabled: Boolean, host: String, port: Int, type: String) {
-        _vpnState.update {
+    fun clearSpeedMetrics() {
+        _speedBoostState.update {
             it.copy(
-                customProxyEnabled = enabled,
-                customProxyHost = host,
-                customProxyPort = port,
-                customProxyType = type
+                lastPageLoadTimeMs = 0L,
+                averageLoadTimeMs = 260L,
+                totalRequestsAccelerated = 0,
+                estimatedDataSavedKb = 0L,
+                totalTimeSavedMs = 0L
             )
-        }
-        if (_vpnState.value.isConnected) {
-            VpnManager.applyVpnState(_vpnState.value)
-        }
-    }
-
-    fun handlePageBlockedError(url: String) {
-        if (!url.startsWith("apex://") && url.isNotBlank()) {
-            _showUnblockPrompt.value = url
-        }
-    }
-
-    fun dismissUnblockPrompt() {
-        _showUnblockPrompt.value = null
-    }
-
-    fun unblockCurrentPage(targetUrl: String? = null) {
-        val urlToUnblock = targetUrl ?: activeTab.value.url
-        if (urlToUnblock.isNotBlank() && !urlToUnblock.startsWith("apex://")) {
-            _vpnState.update { it.copy(sitesUnblockedCount = it.sitesUnblockedCount + 1) }
-            if (!_vpnState.value.isConnected) {
-                toggleVpn()
-            }
-            _showUnblockPrompt.value = null
-            val unblockedUrl = VpnManager.buildUnblockedUrl(urlToUnblock)
-            loadUrlInActiveTab(unblockedUrl)
         }
     }
 }

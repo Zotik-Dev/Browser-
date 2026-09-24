@@ -58,55 +58,16 @@ data class ReaderContent(
     val url: String
 )
 
-data class VpnServer(
-    val id: String,
-    val name: String,
-    val city: String,
-    val countryCode: String,
-    val flagEmoji: String,
-    val proxyHost: String,
-    val proxyPort: Int,
-    val pingMs: Int,
-    val isRecommended: Boolean = false
+data class SpeedBoostState(
+    val isEnhancedSpeedEnabled: Boolean = true,
+    val isAggressiveCacheEnabled: Boolean = true,
+    val isHardwareAccelerationEnabled: Boolean = true,
+    val isPrefetchEnabled: Boolean = true,
+    val isDataSaverEnabled: Boolean = false,
+    val lastPageLoadTimeMs: Long = 0L,
+    val averageLoadTimeMs: Long = 260L,
+    val totalRequestsAccelerated: Int = 18,
+    val estimatedDataSavedKb: Long = 2240L,
+    val totalTimeSavedMs: Long = 8400L
 )
 
-data class SecureDnsProvider(
-    val id: String,
-    val name: String,
-    val description: String,
-    val primaryIp: String,
-    val dohUrl: String
-)
-
-data class VpnState(
-    val isConnected: Boolean = false,
-    val isConnecting: Boolean = false,
-    val selectedServer: VpnServer = DEFAULT_VPN_SERVERS[0],
-    val unblockAllSites: Boolean = true,
-    val selectedDns: SecureDnsProvider = DEFAULT_DNS_PROVIDERS[0],
-    val customProxyEnabled: Boolean = false,
-    val customProxyHost: String = "",
-    val customProxyPort: Int = 8080,
-    val customProxyType: String = "HTTP", // HTTP or SOCKS5
-    val currentVirtualIp: String = "104.28.19.42",
-    val sessionDurationSeconds: Long = 0L,
-    val sitesUnblockedCount: Int = 0
-)
-
-val DEFAULT_VPN_SERVERS = listOf(
-    VpnServer("auto", "Auto (Fastest)", "New York", "US", "🇺🇸", "us-east.apexvpn.net", 8443, 24, isRecommended = true),
-    VpnServer("us_west", "United States", "Los Angeles", "US", "🇺🇸", "us-west.apexvpn.net", 8443, 38),
-    VpnServer("uk", "United Kingdom", "London", "GB", "🇬🇧", "uk.apexvpn.net", 8443, 32),
-    VpnServer("de", "Germany", "Frankfurt", "DE", "🇩🇪", "de.apexvpn.net", 8443, 29),
-    VpnServer("nl", "Netherlands", "Amsterdam", "NL", "🇳🇱", "nl.apexvpn.net", 8443, 31),
-    VpnServer("sg", "Singapore", "Singapore", "SG", "🇸🇬", "sg.apexvpn.net", 8443, 52),
-    VpnServer("jp", "Japan", "Tokyo", "JP", "🇯🇵", "jp.apexvpn.net", 8443, 65),
-    VpnServer("ca", "Canada", "Toronto", "CA", "🇨🇦", "ca.apexvpn.net", 8443, 44)
-)
-
-val DEFAULT_DNS_PROVIDERS = listOf(
-    SecureDnsProvider("cloudflare", "Cloudflare DNS", "Ultra-fast & privacy-focused (1.1.1.1)", "1.1.1.1", "https://cloudflare-dns.com/dns-query"),
-    SecureDnsProvider("google", "Google Public DNS", "Global scale & high reliability (8.8.8.8)", "8.8.8.8", "https://dns.google/dns-query"),
-    SecureDnsProvider("quad9", "Quad9 DNS", "Automatic malicious site & threat blocking (9.9.9.9)", "9.9.9.9", "https://dns.quad9.net/dns-query"),
-    SecureDnsProvider("adguard", "AdGuard DNS", "Bypasses ISP blocks & stops ads (94.140.14.14)", "94.140.14.14", "https://dns.adguard.com/dns-query")
-)

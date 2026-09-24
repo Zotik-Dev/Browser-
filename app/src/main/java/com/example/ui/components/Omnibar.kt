@@ -35,7 +35,9 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
-import androidx.compose.material.icons.filled.VpnKey
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.FlashOn
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.FindInPage
 import androidx.compose.material.icons.outlined.Shield
@@ -76,7 +78,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.model.BrowserTab
 import com.example.model.SecurityState
-import com.example.model.VpnState
+import com.example.model.SpeedBoostState
+import com.example.util.SpeedBooster
 
 @Composable
 fun Omnibar(
@@ -84,7 +87,7 @@ fun Omnibar(
     isBookmarked: Boolean,
     adBlockerEnabled: Boolean,
     trackersBlocked: Int,
-    vpnState: VpnState,
+    speedState: SpeedBoostState,
     onNavigate: (String) -> Unit,
     onReload: () -> Unit,
     onStopLoading: () -> Unit,
@@ -98,8 +101,7 @@ fun Omnibar(
     onOpenDownloads: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenClearData: () -> Unit,
-    onOpenVpnSheet: () -> Unit,
-    onUnblockCurrentPage: () -> Unit,
+    onOpenSpeedSheet: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     var isEditing by remember { mutableStateOf(false) }
@@ -275,37 +277,39 @@ fun Omnibar(
 
                 Spacer(modifier = Modifier.width(4.dp))
 
-                // VPN Quick Status Button
+                // Speed Booster / Turbo Quick Status Button
                 Surface(
-                    onClick = onOpenVpnSheet,
+                    onClick = onOpenSpeedSheet,
                     shape = RoundedCornerShape(12.dp),
-                    color = if (vpnState.isConnected) Color(0xFF10B981).copy(alpha = 0.15f)
+                    color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.15f)
                     else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                     border = BorderStroke(
                         width = 1.dp,
-                        color = if (vpnState.isConnected) Color(0xFF10B981) else Color.Transparent
+                        color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.5f) else Color.Transparent
                     ),
                     modifier = Modifier
                         .height(34.dp)
                         .padding(horizontal = 2.dp)
-                        .testTag("omnibar_vpn_button")
+                        .testTag("omnibar_speed_button")
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.padding(horizontal = 7.dp)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.VpnKey,
-                            contentDescription = "Apex VPN & Site Unblocker",
-                            tint = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(14.dp)
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = "Speed Booster & Turbo",
+                            tint = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(15.dp)
                         )
                         Spacer(modifier = Modifier.width(3.dp))
                         Text(
-                            text = if (vpnState.isConnected) vpnState.selectedServer.countryCode else "VPN",
+                            text = if (speedState.isEnhancedSpeedEnabled) {
+                                if (speedState.lastPageLoadTimeMs > 0) SpeedBooster.formatLoadTime(speedState.lastPageLoadTimeMs) else "TURBO"
+                            } else "FAST",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -363,51 +367,37 @@ fun Omnibar(
                         expanded = showMenu,
                         onDismissRequest = { showMenu = false }
                     ) {
-                        // VPN & Unblocker
+                        // Enhanced Speed Booster
                         DropdownMenuItem(
-                            text = { Text("VPN & Site Unblocker") },
+                            text = { Text("Speed Booster & Turbo") },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Default.VpnKey,
+                                    imageVector = Icons.Default.Bolt,
                                     contentDescription = null,
-                                    tint = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurface
+                                    tint = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurface
                                 )
                             },
                             trailingIcon = {
                                 Surface(
                                     shape = RoundedCornerShape(6.dp),
-                                    color = if (vpnState.isConnected) Color(0xFF10B981).copy(alpha = 0.15f)
+                                    color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B).copy(alpha = 0.15f)
                                     else MaterialTheme.colorScheme.surfaceVariant
                                 ) {
                                     Text(
-                                        text = if (vpnState.isConnected) "ON" else "OFF",
+                                        text = if (speedState.isEnhancedSpeedEnabled) "TURBO" else "OFF",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant,
                                         modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                     )
                                 }
                             },
                             onClick = {
                                 showMenu = false
-                                onOpenVpnSheet()
+                                onOpenSpeedSheet()
                             },
-                            modifier = Modifier.testTag("menu_vpn_item")
+                            modifier = Modifier.testTag("menu_speed_item")
                         )
-
-                        if (!tab.isHome) {
-                            DropdownMenuItem(
-                                text = { Text("Unblock This Page") },
-                                leadingIcon = {
-                                    Icon(Icons.Default.Public, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                                },
-                                onClick = {
-                                    showMenu = false
-                                    onUnblockCurrentPage()
-                                },
-                                modifier = Modifier.testTag("menu_unblock_page_item")
-                            )
-                        }
 
                         HorizontalDivider()
 
@@ -583,12 +573,12 @@ fun Omnibar(
                     Text("Trackers and ad scripts blocked: $trackersBlocked")
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = if (vpnState.isConnected)
-                            "VPN Tunnel: Connected (${vpnState.selectedServer.name} • ${vpnState.currentVirtualIp})"
+                        text = if (speedState.isEnhancedSpeedEnabled)
+                            "Speed Booster: Turbo Active (${SpeedBooster.formatLoadTime(speedState.averageLoadTimeMs)} avg load time)"
                         else
-                            "VPN Tunnel: Inactive (Tap below to activate)",
+                            "Speed Booster: Standard",
                         fontWeight = FontWeight.Medium,
-                        color = if (vpnState.isConnected) Color(0xFF10B981) else MaterialTheme.colorScheme.onSurfaceVariant
+                        color = if (speedState.isEnhancedSpeedEnabled) Color(0xFFF59E0B) else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
@@ -606,10 +596,10 @@ fun Omnibar(
                 androidx.compose.material3.TextButton(
                     onClick = {
                         showShieldDialog = false
-                        onOpenVpnSheet()
+                        onOpenSpeedSheet()
                     }
                 ) {
-                    Text("VPN Settings")
+                    Text("Speed Settings")
                 }
             },
             confirmButton = {
